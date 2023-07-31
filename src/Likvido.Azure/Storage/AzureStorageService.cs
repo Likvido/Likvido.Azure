@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
-using System.Web;
-using Azure;
+﻿using Azure;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using System.Web;
 
 namespace Likvido.Azure.Storage
 {
@@ -109,19 +109,15 @@ namespace Likvido.Azure.Storage
 
         public async Task<MemoryStream> GetAsync(Uri uri)
         {
-            if (uri.AbsolutePath.Contains(container.Name))
-            {
-                return await GetAsync(uri.AbsolutePath.Substring(uri.AbsolutePath.LastIndexOf('/') + 1)).ConfigureAwait(false);
-            }
-            return null;
+            return await GetAsync(GetBlobNameFromUri(uri)).ConfigureAwait(false);
         }
 
-        public async Task<MemoryStream> GetAsync(string key)
+        public async Task<MemoryStream> GetAsync(string blobName)
         {
             try
             {
                 var stream = new MemoryStream();
-                var blob = new BlobClient(new Uri(key));
+                var blob = container.GetBlobClient(blobName);
                 await blob.DownloadToAsync(stream).ConfigureAwait(false);
                 stream.Position = 0;
                 return stream;
@@ -130,6 +126,19 @@ namespace Likvido.Azure.Storage
             {
                 throw ex;
             }
+        }
+
+        public string GetBlobNameFromUri(Uri uri)
+        {
+            var path = HttpUtility.UrlDecode(uri.AbsolutePath);
+            var containerNameIndex = path.IndexOf(container.Name);
+
+            if (containerNameIndex >= 0)
+            {
+                return path.Substring(containerNameIndex + container.Name.Length + 1);
+            }
+
+            throw new ArgumentException("The provided URI does not belong to the container of this service");
         }
 
         public async Task<IDictionary<string, string>> GetMetadataAsync(string key)

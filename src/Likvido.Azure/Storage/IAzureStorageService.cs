@@ -1,9 +1,8 @@
+using Azure.Storage.Blobs;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Azure.Storage.Blobs;
 
 namespace Likvido.Azure.Storage
 {
@@ -18,7 +17,8 @@ namespace Likvido.Azure.Storage
         Uri Set(string key, Stream content, bool overwrite = true, Dictionary<string, string> metadata = null);
         Task DeleteAsync(string key);
         Task<MemoryStream> GetAsync(Uri uri);
-        Task<MemoryStream> GetAsync(string key);
+        Task<MemoryStream> GetAsync(string blobName);
+        string GetBlobNameFromUri(Uri uri);
         Task<Uri> RenameAsync(string tempFileName, string fileName);
         Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null);
         Task<string> GetBlobSasUriAsync(string url);
