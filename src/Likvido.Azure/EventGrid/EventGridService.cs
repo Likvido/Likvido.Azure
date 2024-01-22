@@ -27,9 +27,14 @@ namespace Likvido.Azure.EventGrid
 
         public async Task PublishAsync(params IEvent[] events)
         {
-            if (events?.Any() != true || _client == null)
+            if (events?.Any() != true)
             {
                 return;
+            }
+
+            if (_client == null)
+            {
+                throw new InvalidOperationException("EventGridPublisherClient is null. Did you forget to setup DI, by calling the AddAzureEventGridServices extension method?");
             }
 
             const int sizeLimit = 1536000;
