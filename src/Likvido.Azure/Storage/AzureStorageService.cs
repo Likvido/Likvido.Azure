@@ -239,6 +239,7 @@ namespace Likvido.Azure.Storage
 
         public async Task<string> GetBlobSasUriAsync(string url)
         {
+            EnsureDomainIsAllowed(url);
             var (accountName, accountKey) = storageConfiguration.GetStorageAccountInfo();
             var blobClient = new BlobClient(new Uri(url), credential: new StorageSharedKeyCredential(accountName, accountKey));
             var exist = await blobClient.ExistsAsync().ConfigureAwait(false);
@@ -257,6 +258,21 @@ namespace Likvido.Azure.Storage
             blobSasBuilder.SetPermissions(BlobSasPermissions.Read);
             var sasBlobToken = blobClient.GenerateSasUri(blobSasBuilder);
             return sasBlobToken.AbsoluteUri;
+        }
+
+        private void EnsureDomainIsAllowed(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                throw new ArgumentException("Url cannot be null or empty");
+            }
+
+            var uri = new Uri(url);
+            // Azure blob storage url must be in the format https://<account>.blob.core.windows.net/<container>/<blob>
+            if (!uri.Host.ToLower().EndsWith("core.windows.net"))
+            {
+                throw new InvalidOperationException($"Url must be a blob storage url. The domain {uri.Host} is not allowed");
+            }
         }
     }
 }
