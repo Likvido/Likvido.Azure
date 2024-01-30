@@ -46,7 +46,8 @@ namespace Likvido.Azure.Queue
             {
                 Source = source,
                 Type = type,
-                Data = data
+                Data = data,
+                Time = DateTime.UtcNow
             };
 
             await SendAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
