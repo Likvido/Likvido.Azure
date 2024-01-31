@@ -15,9 +15,12 @@ namespace Likvido.Azure.Queue
     public class QueueService : IQueueService
     {
         private readonly QueueServiceClient _queueServiceClient;
-        public QueueService(QueueServiceClient queueServiceClient)
+        private readonly string _defaultSource;
+
+        public QueueService(QueueServiceClient queueServiceClient, string defaultSource)
         {
             _queueServiceClient = queueServiceClient;
+            _defaultSource = defaultSource;
         }
 
         public async Task SendAsync(
@@ -35,7 +38,6 @@ namespace Likvido.Azure.Queue
 
         public async Task SendAsync<T>(
             string queueName,
-            string source,
             string type,
             T data,
             TimeSpan? initialVisibilityDelay = null,
@@ -44,10 +46,9 @@ namespace Likvido.Azure.Queue
         {
             var cloudEvent = new CloudEvent<T>
             {
-                Source = source,
+                Source = _defaultSource,
                 Type = type,
-                Data = data,
-                Time = DateTime.UtcNow
+                Data = data
             };
 
             await SendAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
@@ -65,32 +66,12 @@ namespace Likvido.Azure.Queue
                 cloudEvent.Time = DateTime.UtcNow;
             }
 
-            await SendMessageAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Obsolete("Please switch to sending messages in the CloudEvent format by using one of the other overloads")]
-        public async Task SendAsync(
-            string queueName,
-            object message,
-            TimeSpan? initialVisibilityDelay = null,
-            TimeSpan? timeToLive = null,
-            CancellationToken cancellationToken = default)
-        {
-            await SendMessageAsync(queueName, message, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Obsolete("Please switch to sending messages in the CloudEvent format by using one of the other overloads")]
-        public async Task SendAsync(
-            string queueName,
-            IEnumerable<object> messages,
-            TimeSpan? initialVisibilityDelay = null,
-            TimeSpan? timeToLive = null,
-            CancellationToken cancellationToken = default)
-        {
-            foreach (var message in messages)
+            if (string.IsNullOrWhiteSpace(cloudEvent.Source))
             {
-                await SendMessageAsync(queueName, message, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
+                cloudEvent.Source = _defaultSource;
             }
+
+            await SendMessageAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task SendMessageAsync(
