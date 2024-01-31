@@ -74,31 +74,6 @@ namespace Likvido.Azure.Queue
             await SendMessageAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
         }
 
-        [Obsolete("Please switch to sending messages in the CloudEvent format by using one of the other overloads")]
-        public async Task SendAsync(
-            string queueName,
-            object message,
-            TimeSpan? initialVisibilityDelay = null,
-            TimeSpan? timeToLive = null,
-            CancellationToken cancellationToken = default)
-        {
-            await SendMessageAsync(queueName, message, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Obsolete("Please switch to sending messages in the CloudEvent format by using one of the other overloads")]
-        public async Task SendAsync(
-            string queueName,
-            IEnumerable<object> messages,
-            TimeSpan? initialVisibilityDelay = null,
-            TimeSpan? timeToLive = null,
-            CancellationToken cancellationToken = default)
-        {
-            foreach (var message in messages)
-            {
-                await SendMessageAsync(queueName, message, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
-            }
-        }
-
         private async Task SendMessageAsync(
             string queueName,
             object message,
