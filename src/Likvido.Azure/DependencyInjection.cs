@@ -29,8 +29,8 @@ namespace Likvido.Azure
 
             services.AddSingleton<IEventGridService>(sp =>
                 new EventGridService(
-                    sp.GetService<EventGridPublisherClient>(),
-                    sp.GetService<ILogger<EventGridService>>(),
+                    sp.GetRequiredService<EventGridPublisherClient>(),
+                    sp.GetRequiredService<ILogger<EventGridService>>(),
                     eventGridConfiguration.Source));
         }
 
@@ -39,6 +39,11 @@ namespace Likvido.Azure
             if (storageConfiguration == null)
             {
                 throw new ArgumentNullException(nameof(storageConfiguration));
+            }
+
+            if (string.IsNullOrWhiteSpace(storageConfiguration.ConnectionString))
+            {
+                throw new ArgumentException("ConnectionString must be set", nameof(storageConfiguration));
             }
 
             services.AddAzureClients(builder =>
@@ -56,13 +61,23 @@ namespace Likvido.Azure
                 throw new ArgumentNullException(nameof(queueConfiguration));
             }
 
+            if (string.IsNullOrWhiteSpace(queueConfiguration.ConnectionString))
+            {
+                throw new ArgumentException("ConnectionString must be set", nameof(queueConfiguration));
+            }
+
+            if (string.IsNullOrWhiteSpace(queueConfiguration.DefaultSource))
+            {
+                throw new ArgumentException("DefaultSource must be set", nameof(queueConfiguration));
+            }
+
             services.AddAzureClients(builder =>
             {
                 builder.AddQueueServiceClient(queueConfiguration.ConnectionString)
                     .ConfigureOptions(o => o.MessageEncoding = QueueMessageEncoding.Base64);
             });
 
-            services.AddSingleton<IQueueService, QueueService>();
+            services.AddSingleton<IQueueService>(sp => new QueueService(sp.GetRequiredService<QueueServiceClient>(), queueConfiguration.DefaultSource));
         }
     }
 }
