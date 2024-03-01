@@ -81,6 +81,11 @@ namespace Likvido.Azure.Queue
             TimeSpan? timeToLive = null,
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(queueName))
+            {
+                throw new ArgumentException("Queue name cannot be null or empty, please check the configuration.", nameof(queueName));
+            }
+
             await new ResiliencePipelineBuilder()
                 .AddRetry(new RetryStrategyOptions
                 {
