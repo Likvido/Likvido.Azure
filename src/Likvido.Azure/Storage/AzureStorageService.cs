@@ -114,18 +114,12 @@ namespace Likvido.Azure.Storage
 
         public async Task<MemoryStream> GetAsync(string blobName)
         {
-            try
-            {
-                var stream = new MemoryStream();
-                var blob = blobContainerClient.GetBlobClient(blobName);
-                await blob.DownloadToAsync(stream).ConfigureAwait(false);
-                stream.Position = 0;
-                return stream;
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
+            var stream = new MemoryStream();
+            var blob = blobContainerClient.GetBlobClient(blobName);
+            await blob.DownloadToAsync(stream).ConfigureAwait(false);
+            stream.Position = 0;
+
+            return stream;
         }
 
         public string GetBlobNameFromUri(Uri uri)
