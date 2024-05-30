@@ -131,7 +131,7 @@ namespace Likvido.Azure.Storage
         public string GetBlobNameFromUri(Uri uri)
         {
             var path = HttpUtility.UrlDecode(uri.AbsolutePath);
-            var containerNameIndex = path.IndexOf(blobContainerClient.Name);
+            var containerNameIndex = path.IndexOf(blobContainerClient.Name, StringComparison.Ordinal);
 
             if (containerNameIndex >= 0)
             {
