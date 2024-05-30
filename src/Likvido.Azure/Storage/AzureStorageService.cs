@@ -185,11 +185,12 @@ namespace Likvido.Azure.Storage
         private async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, int iteration = 0, Dictionary<string, string> metadata = null)
         {
             content.Seek(0, SeekOrigin.Begin);
-            string duplicateAwareKey = key;
+
+            var duplicateAwareKey = key;
             if (!overwrite)
             {
-                duplicateAwareKey = (iteration > 0) ?
-                    $"{Path.GetDirectoryName(key).Replace('\\', '/')}/{Path.GetFileNameWithoutExtension(key)}({iteration.ToString()}){Path.GetExtension(key)}"
+                duplicateAwareKey = iteration > 0 ?
+                    $"{Path.GetDirectoryName(key)?.Replace('\\', '/')}/{Path.GetFileNameWithoutExtension(key)}({iteration.ToString()}){Path.GetExtension(key)}"
                     : key;
             }
 
