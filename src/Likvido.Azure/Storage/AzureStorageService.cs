@@ -22,7 +22,6 @@ namespace Likvido.Azure.Storage
 
             var blobServiceClient = new BlobServiceClient(storageConfiguration.ConnectionString);
             blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
-            blobContainerClient.CreateIfNotExists();
         }
 
         public async Task DeleteAsync(Uri uri)
