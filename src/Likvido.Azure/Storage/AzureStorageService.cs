@@ -26,24 +26,12 @@ namespace Likvido.Azure.Storage
 
         public async Task DeleteAsync(Uri uri)
         {
-            var absolutePath = uri.AbsolutePath;
-            if (absolutePath.StartsWith("/"))
-            {
-                absolutePath = absolutePath.Substring(1);
-            }
-
-            if (absolutePath.StartsWith(blobContainerClient.Name))
-            {
-                absolutePath = absolutePath.Substring(blobContainerClient.Name.Length + 1);
-            }
-
-            await DeleteAsync(absolutePath).ConfigureAwait(false);
+            await DeleteAsync(new BlobClient(uri)).ConfigureAwait(false);
         }
 
         public async Task DeleteAsync(string key)
         {
-            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(key));
-            await blob.DeleteIfExistsAsync().ConfigureAwait(false);
+            await DeleteAsync(blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(key))).ConfigureAwait(false);
         }
 
         public IEnumerable<Uri> Find(string prefix)
@@ -125,6 +113,11 @@ namespace Likvido.Azure.Storage
             blobSasBuilder.SetPermissions(BlobSasPermissions.Read);
             var sasBlobToken = blobClient.GenerateSasUri(blobSasBuilder);
             return sasBlobToken.AbsoluteUri;
+        }
+
+        private static async Task DeleteAsync(BlobClient blobClient)
+        {
+            await blobClient.DeleteIfExistsAsync().ConfigureAwait(false);
         }
 
         private static async Task<MemoryStream> GetAsync(BlobClient blobClient)
