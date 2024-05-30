@@ -54,21 +54,6 @@ namespace Likvido.Azure.Storage
             }
         }
 
-        public Uri Rename(string tempFileName, string fileName)
-        {
-            var existingBlob = blobContainerClient.GetBlobClient(tempFileName);
-
-            if (existingBlob?.Exists() != true)
-            {
-                return null;
-            }
-
-            var newBlob = blobContainerClient.GetBlobClient(fileName);
-            newBlob.StartCopyFromUri(existingBlob.Uri);
-
-            return newBlob.Uri;
-        }
-
         public async Task<Uri> RenameAsync(string tempFileName, string fileName)
         {
             var existingBlob = blobContainerClient.GetBlobClient(tempFileName);
@@ -82,11 +67,6 @@ namespace Likvido.Azure.Storage
             await newBlob.StartCopyFromUriAsync(existingBlob.Uri).ConfigureAwait(false);
 
             return newBlob.Uri;
-        }
-
-        public Uri Set(string key, Stream content, bool overwrite = true, Dictionary<string, string> metadata = null)
-        {
-            return Set(key, content, overwrite, 0, metadata);
         }
 
         public async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null)
@@ -231,39 +211,6 @@ namespace Likvido.Azure.Storage
 
                 // Set the blob's properties.
                 await blob.SetHttpHeadersAsync(headers);
-            }
-
-            return blob.Uri;
-        }
-
-        private Uri Set(string key, Stream content, bool overwrite = true, int iteration = 0, Dictionary<string, string> metadata = null)
-        {
-            content.Seek(0, SeekOrigin.Begin);
-
-            var duplicateAwareKey = key;
-            if (!overwrite)
-            {
-                duplicateAwareKey = iteration > 0 ?
-                    $"{Path.GetDirectoryName(key)?.Replace('\\', '/')}/{Path.GetFileNameWithoutExtension(key)}({iteration.ToString()}){Path.GetExtension(key)}"
-                    : key;
-            }
-
-            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
-
-            try
-            {
-                blob.Upload(content, overwrite: overwrite);
-                if (metadata != null)
-                {
-                    blob.SetMetadata(metadata);
-                }
-            }
-            catch (RequestFailedException ex)
-            {
-                if (ex.Status == (int)System.Net.HttpStatusCode.Conflict)
-                {
-                    return Set(key, content, overwrite, ++iteration, metadata);
-                }
             }
 
             return blob.Uri;

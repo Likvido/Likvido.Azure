@@ -13,8 +13,6 @@ namespace Likvido.Azure.Storage
     {
         Task DeleteAsync(Uri uri);
         IEnumerable<Uri> Find(string prefix);
-        Uri Rename(string tempFileName, string fileName);
-        Uri Set(string key, Stream content, bool overwrite = true, Dictionary<string, string> metadata = null);
         Task DeleteAsync(string key);
         Task<MemoryStream> GetAsync(Uri uri);
         Task<MemoryStream> GetAsync(string blobName);
