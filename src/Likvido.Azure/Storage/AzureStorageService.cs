@@ -57,13 +57,15 @@ namespace Likvido.Azure.Storage
         public Uri Rename(string tempFileName, string fileName)
         {
             var existingBlob = blobContainerClient.GetBlobClient(tempFileName);
+
             if (existingBlob?.Exists() == true)
             {
                 var newBlob = blobContainerClient.GetBlobClient(fileName);
-                var blobObj = newBlob as BlobClient;
-                blobObj?.StartCopyFromUri(existingBlob.Uri);
+                newBlob.StartCopyFromUri(existingBlob.Uri);
+
                 return newBlob.Uri;
             }
+
             return null;
         }
 
