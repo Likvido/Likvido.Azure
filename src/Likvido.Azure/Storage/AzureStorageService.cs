@@ -69,6 +69,21 @@ namespace Likvido.Azure.Storage
             return newBlob.Uri;
         }
 
+        public async Task<Uri> RenameAsync(string tempFileName, string fileName)
+        {
+            var existingBlob = blobContainerClient.GetBlobClient(tempFileName);
+
+            if (existingBlob == null || !await existingBlob.ExistsAsync().ConfigureAwait(false))
+            {
+                return null;
+            }
+
+            var newBlob = blobContainerClient.GetBlobClient(fileName);
+            await newBlob.StartCopyFromUriAsync(existingBlob.Uri).ConfigureAwait(false);
+
+            return newBlob.Uri;
+        }
+
         public Uri Set(string key, Stream content, bool overwrite = true, Dictionary<string, string> metadata = null)
         {
             return Set(key, content, overwrite, 0, metadata);
@@ -155,22 +170,6 @@ namespace Likvido.Azure.Storage
             var blobProperties = await blob.GetPropertiesAsync().ConfigureAwait(false);
 
             return blobProperties.Value.Metadata;
-        }
-
-        public async Task<Uri> RenameAsync(string tempFileName, string fileName)
-        {
-            var existingBlob = blobContainerClient.GetBlobClient(tempFileName);
-            if (existingBlob?.Exists())
-            {
-                var newBlob = blobContainerClient.GetBlobClient(fileName);
-                var blobObj = newBlob as BlobClient;
-                if (blobObj?.Exists())
-                {
-                    await blobObj.StartCopyFromUriAsync(existingBlob.Uri).ConfigureAwait(false);
-                }
-                return newBlob.Uri;
-            }
-            return null;
         }
 
         public async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null)
