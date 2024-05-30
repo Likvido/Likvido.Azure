@@ -14,19 +14,18 @@ namespace Likvido.Azure.Storage
     public class AzureStorageService : IAzureStorageService
     {
         private readonly BlobContainerClient blobContainerClient;
-        private readonly StorageConfiguration storageConfiguration;
+        private readonly StorageSharedKeyCredential storageSharedKeyCredential;
 
         public AzureStorageService(StorageConfiguration storageConfiguration, string containerName)
         {
-            this.storageConfiguration = storageConfiguration;
-
             var blobServiceClient = new BlobServiceClient(storageConfiguration.ConnectionString);
             blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
+            storageSharedKeyCredential = storageConfiguration.GetStorageSharedKeyCredential();
         }
 
         public async Task DeleteAsync(Uri uri)
         {
-            await DeleteAsync(new BlobClient(uri)).ConfigureAwait(false);
+            await DeleteAsync(new BlobClient(uri, storageSharedKeyCredential)).ConfigureAwait(false);
         }
 
         public async Task DeleteAsync(string key)
@@ -66,7 +65,7 @@ namespace Likvido.Azure.Storage
         {
             if (uri.AbsolutePath.Contains(blobContainerClient.Name))
             {
-                return await GetAsync(new BlobClient(uri)).ConfigureAwait(false);
+                return await GetAsync(new BlobClient(uri, storageSharedKeyCredential)).ConfigureAwait(false);
             }
 
             return null;
@@ -86,7 +85,7 @@ namespace Likvido.Azure.Storage
         {
             if (uri.AbsolutePath.Contains(blobContainerClient.Name))
             {
-                return await GetMetadataAsync(new BlobClient(uri)).ConfigureAwait(false);
+                return await GetMetadataAsync(new BlobClient(uri, storageSharedKeyCredential)).ConfigureAwait(false);
             }
 
             return null;
@@ -95,8 +94,7 @@ namespace Likvido.Azure.Storage
         public async Task<string> GetBlobSasUriAsync(string url)
         {
             EnsureDomainIsAllowed(url);
-            var (accountName, accountKey) = storageConfiguration.GetStorageAccountInfo();
-            var blobClient = new BlobClient(new Uri(url), credential: new StorageSharedKeyCredential(accountName, accountKey));
+            var blobClient = new BlobClient(new Uri(url), storageSharedKeyCredential);
             var exist = await blobClient.ExistsAsync().ConfigureAwait(false);
             if (!exist)
             {
