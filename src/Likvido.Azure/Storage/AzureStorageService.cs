@@ -89,39 +89,6 @@ namespace Likvido.Azure.Storage
             return Set(key, content, overwrite, 0, metadata);
         }
 
-        private Uri Set(string key, Stream content, bool overwrite = true, int iteration = 0, Dictionary<string, string> metadata = null)
-        {
-            content.Seek(0, SeekOrigin.Begin);
-
-            var duplicateAwareKey = key;
-            if (!overwrite)
-            {
-                duplicateAwareKey = iteration > 0 ?
-                    $"{Path.GetDirectoryName(key)?.Replace('\\', '/')}/{Path.GetFileNameWithoutExtension(key)}({iteration.ToString()}){Path.GetExtension(key)}"
-                    : key;
-            }
-
-            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
-
-            try
-            {
-                blob.Upload(content, overwrite: overwrite);
-                if (metadata != null)
-                {
-                    blob.SetMetadata(metadata);
-                }
-            }
-            catch (RequestFailedException ex)
-            {
-                if (ex.Status == (int)System.Net.HttpStatusCode.Conflict)
-                {
-                    return Set(key, content, overwrite, ++iteration, metadata);
-                }
-            }
-
-            return blob.Uri;
-        }
-
         public async Task<MemoryStream> GetAsync(Uri uri)
         {
             return await GetAsync(GetBlobNameFromUri(uri)).ConfigureAwait(false);
@@ -177,6 +144,44 @@ namespace Likvido.Azure.Storage
             return await SetAsync(key, content, friendlyName, overwrite, 0, metadata).ConfigureAwait(false);
         }
 
+        public async Task<string> GetBlobSasUriAsync(string url)
+        {
+            EnsureDomainIsAllowed(url);
+            var (accountName, accountKey) = storageConfiguration.GetStorageAccountInfo();
+            var blobClient = new BlobClient(new Uri(url), credential: new StorageSharedKeyCredential(accountName, accountKey));
+            var exist = await blobClient.ExistsAsync().ConfigureAwait(false);
+            if (!exist)
+            {
+                return null;
+            }
+
+            //  Defines the resource being accessed and for how long the access is allowed.
+            var blobSasBuilder = new BlobSasBuilder
+            {
+                ExpiresOn = DateTime.UtcNow.AddMinutes(1)
+            };
+
+            //  Defines the type of permission.
+            blobSasBuilder.SetPermissions(BlobSasPermissions.Read);
+            var sasBlobToken = blobClient.GenerateSasUri(blobSasBuilder);
+            return sasBlobToken.AbsoluteUri;
+        }
+
+        private void EnsureDomainIsAllowed(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                throw new ArgumentException("Url cannot be null or empty");
+            }
+
+            var uri = new Uri(url);
+            // Azure blob storage url must be in the format https://<account>.blob.core.windows.net/<container>/<blob>
+            if (!uri.Host.ToLower().EndsWith("core.windows.net"))
+            {
+                throw new InvalidOperationException($"Url must be a blob storage url. The domain {uri.Host} is not allowed");
+            }
+        }
+
         private async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, int iteration = 0, Dictionary<string, string> metadata = null)
         {
             content.Seek(0, SeekOrigin.Begin);
@@ -230,42 +235,37 @@ namespace Likvido.Azure.Storage
             return blob.Uri;
         }
 
-        public async Task<string> GetBlobSasUriAsync(string url)
+        private Uri Set(string key, Stream content, bool overwrite = true, int iteration = 0, Dictionary<string, string> metadata = null)
         {
-            EnsureDomainIsAllowed(url);
-            var (accountName, accountKey) = storageConfiguration.GetStorageAccountInfo();
-            var blobClient = new BlobClient(new Uri(url), credential: new StorageSharedKeyCredential(accountName, accountKey));
-            var exist = await blobClient.ExistsAsync().ConfigureAwait(false);
-            if (!exist)
+            content.Seek(0, SeekOrigin.Begin);
+
+            var duplicateAwareKey = key;
+            if (!overwrite)
             {
-                return null;
+                duplicateAwareKey = iteration > 0 ?
+                    $"{Path.GetDirectoryName(key)?.Replace('\\', '/')}/{Path.GetFileNameWithoutExtension(key)}({iteration.ToString()}){Path.GetExtension(key)}"
+                    : key;
             }
 
-            //  Defines the resource being accessed and for how long the access is allowed.
-            var blobSasBuilder = new BlobSasBuilder
-            {
-                ExpiresOn = DateTime.UtcNow.AddMinutes(1)
-            };
+            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
 
-            //  Defines the type of permission.
-            blobSasBuilder.SetPermissions(BlobSasPermissions.Read);
-            var sasBlobToken = blobClient.GenerateSasUri(blobSasBuilder);
-            return sasBlobToken.AbsoluteUri;
-        }
-
-        private void EnsureDomainIsAllowed(string url)
-        {
-            if (string.IsNullOrWhiteSpace(url))
+            try
             {
-                throw new ArgumentException("Url cannot be null or empty");
+                blob.Upload(content, overwrite: overwrite);
+                if (metadata != null)
+                {
+                    blob.SetMetadata(metadata);
+                }
+            }
+            catch (RequestFailedException ex)
+            {
+                if (ex.Status == (int)System.Net.HttpStatusCode.Conflict)
+                {
+                    return Set(key, content, overwrite, ++iteration, metadata);
+                }
             }
 
-            var uri = new Uri(url);
-            // Azure blob storage url must be in the format https://<account>.blob.core.windows.net/<container>/<blob>
-            if (!uri.Host.ToLower().EndsWith("core.windows.net"))
-            {
-                throw new InvalidOperationException($"Url must be a blob storage url. The domain {uri.Host} is not allowed");
-            }
+            return blob.Uri;
         }
     }
 }
