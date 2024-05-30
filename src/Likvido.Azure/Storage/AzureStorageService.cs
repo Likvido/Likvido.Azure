@@ -20,8 +20,8 @@ namespace Likvido.Azure.Storage
         {
             this.storageConfiguration = storageConfiguration;
 
-            var blobStorage = new BlobServiceClient(storageConfiguration.ConnectionString);
-            container = blobStorage.GetBlobContainerClient(containerName);
+            var blobServiceClient = new BlobServiceClient(storageConfiguration.ConnectionString);
+            container = blobServiceClient.GetBlobContainerClient(containerName);
             container.CreateIfNotExists();
             container.SetAccessPolicy(PublicAccessType.Blob);
         }
