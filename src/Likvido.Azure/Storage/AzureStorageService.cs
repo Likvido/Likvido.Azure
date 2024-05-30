@@ -89,6 +89,11 @@ namespace Likvido.Azure.Storage
             return Set(key, content, overwrite, 0, metadata);
         }
 
+        public async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null)
+        {
+            return await SetAsync(key, content, friendlyName, overwrite, 0, metadata).ConfigureAwait(false);
+        }
+
         public async Task<MemoryStream> GetAsync(Uri uri)
         {
             return await GetAsync(GetBlobNameFromUri(uri)).ConfigureAwait(false);
@@ -137,11 +142,6 @@ namespace Likvido.Azure.Storage
             var blobProperties = await blob.GetPropertiesAsync().ConfigureAwait(false);
 
             return blobProperties.Value.Metadata;
-        }
-
-        public async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null)
-        {
-            return await SetAsync(key, content, friendlyName, overwrite, 0, metadata).ConfigureAwait(false);
         }
 
         public async Task<string> GetBlobSasUriAsync(string url)
