@@ -76,30 +76,17 @@ namespace Likvido.Azure.Storage
 
         public async Task<MemoryStream> GetAsync(Uri uri)
         {
-            return await GetAsync(GetBlobNameFromUri(uri)).ConfigureAwait(false);
+            if (uri.AbsolutePath.Contains(blobContainerClient.Name))
+            {
+                return await GetAsync(new BlobClient(uri)).ConfigureAwait(false);
+            }
+
+            return null;
         }
 
         public async Task<MemoryStream> GetAsync(string blobName)
         {
-            var stream = new MemoryStream();
-            var blob = blobContainerClient.GetBlobClient(blobName);
-            await blob.DownloadToAsync(stream).ConfigureAwait(false);
-            stream.Position = 0;
-
-            return stream;
-        }
-
-        public string GetBlobNameFromUri(Uri uri)
-        {
-            var path = HttpUtility.UrlDecode(uri.AbsolutePath);
-            var containerNameIndex = path.IndexOf(blobContainerClient.Name, StringComparison.Ordinal);
-
-            if (containerNameIndex >= 0)
-            {
-                return path.Substring(containerNameIndex + blobContainerClient.Name.Length + 1);
-            }
-
-            throw new ArgumentException("The provided URI does not belong to the container of this service");
+            return await GetAsync(blobContainerClient.GetBlobClient(blobName)).ConfigureAwait(false);
         }
 
         public async Task<IDictionary<string, string>> GetMetadataAsync(string key)
@@ -115,13 +102,6 @@ namespace Likvido.Azure.Storage
             }
 
             return null;
-        }
-
-        public async Task<IDictionary<string, string>> GetMetadataAsync(BlobClient blob)
-        {
-            var blobProperties = await blob.GetPropertiesAsync().ConfigureAwait(false);
-
-            return blobProperties.Value.Metadata;
         }
 
         public async Task<string> GetBlobSasUriAsync(string url)
@@ -145,6 +125,22 @@ namespace Likvido.Azure.Storage
             blobSasBuilder.SetPermissions(BlobSasPermissions.Read);
             var sasBlobToken = blobClient.GenerateSasUri(blobSasBuilder);
             return sasBlobToken.AbsoluteUri;
+        }
+
+        private static async Task<MemoryStream> GetAsync(BlobClient blobClient)
+        {
+            var stream = new MemoryStream();
+            await blobClient.DownloadToAsync(stream).ConfigureAwait(false);
+            stream.Position = 0;
+
+            return stream;
+        }
+
+        private static async Task<IDictionary<string, string>> GetMetadataAsync(BlobClient blob)
+        {
+            var blobProperties = await blob.GetPropertiesAsync().ConfigureAwait(false);
+
+            return blobProperties.Value.Metadata;
         }
 
         private void EnsureDomainIsAllowed(string url)
