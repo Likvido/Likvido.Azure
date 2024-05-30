@@ -13,7 +13,7 @@ namespace Likvido.Azure.Storage
 {
     public class AzureStorageService : IAzureStorageService
     {
-        private readonly BlobContainerClient container;
+        private readonly BlobContainerClient blobContainerClient;
         private readonly StorageConfiguration storageConfiguration;
 
         public AzureStorageService(StorageConfiguration storageConfiguration, string containerName)
@@ -21,9 +21,9 @@ namespace Likvido.Azure.Storage
             this.storageConfiguration = storageConfiguration;
 
             var blobServiceClient = new BlobServiceClient(storageConfiguration.ConnectionString);
-            container = blobServiceClient.GetBlobContainerClient(containerName);
-            container.CreateIfNotExists();
-            container.SetAccessPolicy(PublicAccessType.Blob);
+            blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
+            blobContainerClient.CreateIfNotExists();
+            blobContainerClient.SetAccessPolicy(PublicAccessType.Blob);
         }
 
         public async Task DeleteAsync(Uri uri)
@@ -34,9 +34,9 @@ namespace Likvido.Azure.Storage
                 absolutePath = absolutePath.Substring(1);
             }
 
-            if (absolutePath.StartsWith(container.Name))
+            if (absolutePath.StartsWith(blobContainerClient.Name))
             {
-                absolutePath = absolutePath.Substring(container.Name.Length + 1);
+                absolutePath = absolutePath.Substring(blobContainerClient.Name.Length + 1);
             }
 
             await DeleteAsync(absolutePath).ConfigureAwait(false);
@@ -44,24 +44,24 @@ namespace Likvido.Azure.Storage
 
         public async Task DeleteAsync(string key)
         {
-            var blob = container.GetBlobClient(HttpUtility.UrlDecode(key));
+            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(key));
             await blob.DeleteIfExistsAsync().ConfigureAwait(false);
         }
 
         public IEnumerable<Uri> Find(string prefix)
         {
-            foreach (var blob in container.GetBlobs(BlobTraits.None, BlobStates.None, prefix))
+            foreach (var blob in blobContainerClient.GetBlobs(BlobTraits.None, BlobStates.None, prefix))
             {
-                yield return container.GetBlobClient(blob.Name)?.Uri;
+                yield return blobContainerClient.GetBlobClient(blob.Name)?.Uri;
             }
         }
 
         public Uri Rename(string tempFileName, string fileName)
         {
-            var existingBlob = container.GetBlobClient(tempFileName);
+            var existingBlob = blobContainerClient.GetBlobClient(tempFileName);
             if (existingBlob?.Exists() == true)
             {
-                var newBlob = container.GetBlobClient(fileName);
+                var newBlob = blobContainerClient.GetBlobClient(fileName);
                 var blobObj = newBlob as BlobClient;
                 blobObj?.StartCopyFromUri(existingBlob.Uri);
                 return newBlob.Uri;
@@ -86,7 +86,7 @@ namespace Likvido.Azure.Storage
                     : key;
             }
 
-            var blob = container.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
+            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
 
             try
             {
@@ -117,7 +117,7 @@ namespace Likvido.Azure.Storage
             try
             {
                 var stream = new MemoryStream();
-                var blob = container.GetBlobClient(blobName);
+                var blob = blobContainerClient.GetBlobClient(blobName);
                 await blob.DownloadToAsync(stream).ConfigureAwait(false);
                 stream.Position = 0;
                 return stream;
@@ -131,11 +131,11 @@ namespace Likvido.Azure.Storage
         public string GetBlobNameFromUri(Uri uri)
         {
             var path = HttpUtility.UrlDecode(uri.AbsolutePath);
-            var containerNameIndex = path.IndexOf(container.Name);
+            var containerNameIndex = path.IndexOf(blobContainerClient.Name);
 
             if (containerNameIndex >= 0)
             {
-                return path.Substring(containerNameIndex + container.Name.Length + 1);
+                return path.Substring(containerNameIndex + blobContainerClient.Name.Length + 1);
             }
 
             throw new ArgumentException("The provided URI does not belong to the container of this service");
@@ -143,12 +143,12 @@ namespace Likvido.Azure.Storage
 
         public async Task<IDictionary<string, string>> GetMetadataAsync(string key)
         {
-            return await GetMetadataAsync(container.GetBlobClient(key)).ConfigureAwait(false);
+            return await GetMetadataAsync(blobContainerClient.GetBlobClient(key)).ConfigureAwait(false);
         }
 
         public async Task<IDictionary<string, string>> GetMetadataAsync(Uri uri)
         {
-            if (uri.AbsolutePath.Contains(container.Name))
+            if (uri.AbsolutePath.Contains(blobContainerClient.Name))
             {
                 return await GetMetadataAsync(new BlobClient(uri)).ConfigureAwait(false);
             }
@@ -165,10 +165,10 @@ namespace Likvido.Azure.Storage
 
         public async Task<Uri> RenameAsync(string tempFileName, string fileName)
         {
-            var existingBlob = container.GetBlobClient(tempFileName);
+            var existingBlob = blobContainerClient.GetBlobClient(tempFileName);
             if (existingBlob?.Exists())
             {
-                var newBlob = container.GetBlobClient(fileName);
+                var newBlob = blobContainerClient.GetBlobClient(fileName);
                 var blobObj = newBlob as BlobClient;
                 if (blobObj?.Exists())
                 {
@@ -195,7 +195,7 @@ namespace Likvido.Azure.Storage
                     : key;
             }
 
-            var blob = container.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
+            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
 
             try
             {
