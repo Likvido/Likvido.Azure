@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Azure;
-using Azure.Messaging;
 using Azure.Messaging.EventGrid;
+using Likvido.CloudEvents;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Fallback;
 using Polly.Retry;
+using CloudEvent = Azure.Messaging.CloudEvent;
 
 namespace Likvido.Azure.EventGrid
 {
@@ -27,6 +28,11 @@ namespace Likvido.Azure.EventGrid
 
         public async Task PublishAsync(params IEvent[] events)
         {
+            await PublishAsync(LikvidoPriority.Normal, events).ConfigureAwait(false);
+        }
+
+        public async Task PublishAsync(LikvidoPriority priority, params IEvent[] events)
+        {
             if (events?.Any() != true)
             {
                 return;
@@ -43,7 +49,11 @@ namespace Likvido.Azure.EventGrid
 
             foreach (var eventItem in events)
             {
-                var cloudEvent = new CloudEvent(_eventGridSource, eventItem.GetEventType(), eventItem);
+                var cloudEvent = new CloudEvent(_eventGridSource, eventItem.GetEventType(), eventItem)
+                {
+                    ExtensionAttributes = { ["likvidopriority"] = Enum.GetName(typeof(LikvidoPriority), priority) }
+                };
+
                 var eventSize = GetEventSize(cloudEvent);
 
                 if (currentBatchSize + eventSize > sizeLimit)
