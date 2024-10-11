@@ -91,7 +91,7 @@ namespace Likvido.Azure.Storage
             return null;
         }
 
-        public async Task<string> GetBlobSasUriAsync(string url)
+        public async Task<string> GetBlobSasUriAsync(string url, DateTime? expiresOn = null)
         {
             EnsureDomainIsAllowed(url);
             var blobClient = new BlobClient(new Uri(url), storageSharedKeyCredential);
@@ -104,7 +104,7 @@ namespace Likvido.Azure.Storage
             //  Defines the resource being accessed and for how long the access is allowed.
             var blobSasBuilder = new BlobSasBuilder
             {
-                ExpiresOn = DateTime.UtcNow.AddMinutes(1)
+                ExpiresOn = expiresOn ?? DateTime.UtcNow.AddMinutes(1)
             };
 
             //  Defines the type of permission.

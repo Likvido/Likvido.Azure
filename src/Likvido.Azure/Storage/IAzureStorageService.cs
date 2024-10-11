@@ -18,7 +18,7 @@ namespace Likvido.Azure.Storage
         Task<MemoryStream> GetAsync(string blobName);
         Task<Uri> RenameAsync(string tempFileName, string fileName);
         Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null);
-        Task<string> GetBlobSasUriAsync(string url);
+        Task<string> GetBlobSasUriAsync(string url, DateTime? expiresOn = null);
         Task<IDictionary<string, string>> GetMetadataAsync(string key);
         Task<IDictionary<string, string>> GetMetadataAsync(Uri uri);
     }
