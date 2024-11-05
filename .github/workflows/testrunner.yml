@@ -17,5 +17,5 @@ jobs:
         uses: likvido/action-test@v1
         with:
           test-target: src/Likvido.Azure.sln
-          framework: net7.0
+          framework: net8.0
           logger: GitHubActions
