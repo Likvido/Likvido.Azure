@@ -97,9 +97,9 @@ namespace Likvido.Azure.EventGrid
                 .AddRetry(new RetryStrategyOptions<Response>
                 {
                     ShouldHandle = new PredicateBuilder<Response>().Handle<Exception>(),
-                    Delay = TimeSpan.FromSeconds(3),
-                    MaxRetryAttempts = 3,
-                    BackoffType = DelayBackoffType.Exponential,
+                    Delay = TimeSpan.FromSeconds(2),
+                    MaxRetryAttempts = 5,
+                    BackoffType = DelayBackoffType.Linear,
                     OnRetry = args =>
                     {
                         _logger.LogError(args.Outcome.Exception, "Error while publishing events to Event Grid. Retrying in {SleepDuration}. Attempt number {AttemptNumber}", args.RetryDelay.ToString("g"), args.AttemptNumber);
