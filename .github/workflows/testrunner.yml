@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Run tests
-        uses: likvido/action-test@v1.1
+        uses: likvido/action-test@v1.2
         with:
           test-target: src/Likvido.Azure.sln
           framework: net8.0
