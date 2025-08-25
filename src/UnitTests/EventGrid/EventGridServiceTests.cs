@@ -2,6 +2,7 @@ using Azure;
 using Azure.Messaging;
 using Azure.Messaging.EventGrid;
 using Likvido.Azure.EventGrid;
+using Likvido.Identity.PrincipalProviders;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -20,8 +21,7 @@ public class EventGridServiceTests
     {
         // Arrange
         var mockClient = new Mock<EventGridPublisherClient>();
-        var mockLogger = new Mock<ILogger<EventGridService>>();
-        var service = new EventGridService(mockClient.Object, mockLogger.Object, "fakeSource");
+        var service = new EventGridService(mockClient.Object, Mock.Of<ILogger<EventGridService>>(), Mock.Of<IPrincipalProvider>(), "fakeSource");
         var events = GenerateFakeEvents(eventCount);
 
         // Setup

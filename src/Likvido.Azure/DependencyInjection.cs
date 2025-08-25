@@ -5,6 +5,8 @@ using Azure.Storage.Queues;
 using Likvido.Azure.EventGrid;
 using Likvido.Azure.Queue;
 using Likvido.Azure.Storage;
+using Likvido.Identity;
+using Likvido.Identity.PrincipalProviders;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,10 +29,13 @@ namespace Likvido.Azure
                     new AzureKeyCredential(eventGridConfiguration.AccessKey));
             });
 
+            services.TryAddNullPrincipalProvider();
+
             services.AddSingleton<IEventGridService>(sp =>
                 new EventGridService(
                     sp.GetRequiredService<EventGridPublisherClient>(),
                     sp.GetRequiredService<ILogger<EventGridService>>(),
+                    sp.GetRequiredService<IPrincipalProvider>(),
                     eventGridConfiguration.Source));
         }
 
@@ -77,7 +82,10 @@ namespace Likvido.Azure
                     .ConfigureOptions(o => o.MessageEncoding = QueueMessageEncoding.Base64);
             });
 
-            services.AddSingleton<IQueueService>(sp => new QueueService(sp.GetRequiredService<QueueServiceClient>(), queueConfiguration.DefaultSource));
+            services.TryAddNullPrincipalProvider();
+
+            services.AddSingleton<IQueueService>(sp => new QueueService(sp.GetRequiredService<QueueServiceClient>(),
+                sp.GetRequiredService<IPrincipalProvider>(), queueConfiguration.DefaultSource));
         }
     }
 }
