@@ -61,7 +61,7 @@ namespace Likvido.Azure.EventGrid
 
                 if (_principalProvider.User != null)
                 {
-                    cloudEvent.ExtensionAttributes.Add("likvidouserclaims", _principalProvider.User.GetAllClaims());
+                    cloudEvent.ExtensionAttributes.Add("likvidouserclaimsstring", _principalProvider.User.GetAllClaimsAsJsonString());
                 }
 
                 var eventSize = GetEventSize(cloudEvent);

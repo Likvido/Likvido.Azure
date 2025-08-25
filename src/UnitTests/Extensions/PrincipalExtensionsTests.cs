@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Security.Principal;
 using Likvido.Azure.Extensions;
+using System.Text.Json;
 using Shouldly;
 using Xunit;
 
@@ -9,36 +10,36 @@ namespace UnitTests.Extensions;
 public class PrincipalExtensionsTests
 {
     [Fact]
-    public void GetAllClaims_WhenPrincipalIsNull_ReturnsEmptyList()
+    public void GetAllClaims_WhenPrincipalIsNull_ReturnsEmptyJsonArray()
     {
         // Arrange
         IPrincipal principal = null!;
 
         // Act
-        var claims = principal.GetAllClaims();
+        var claimsJson = principal.GetAllClaimsAsJsonString();
 
         // Assert
-        claims.ShouldNotBeNull();
-        claims.ShouldBeEmpty();
+        claimsJson.ShouldNotBeNull();
+        claimsJson.ShouldBe("[]");
     }
 
     [Fact]
-    public void GetAllClaims_WhenPrincipalIsNotClaimsPrincipal_ReturnsEmptyList()
+    public void GetAllClaims_WhenPrincipalIsNotClaimsPrincipal_ReturnsEmptyJsonArray()
     {
         // Arrange: create a custom IPrincipal that is NOT a ClaimsPrincipal
         var identity = new GenericIdentity("user");
         IPrincipal principal = new NonClaimsPrincipal(identity);
 
         // Act
-        var claims = principal.GetAllClaims();
+        var claimsJson = principal.GetAllClaimsAsJsonString();
 
         // Assert
-        claims.ShouldNotBeNull();
-        claims.ShouldBeEmpty();
+        claimsJson.ShouldNotBeNull();
+        claimsJson.ShouldBe("[]");
     }
 
     [Fact]
-    public void GetAllClaims_WhenSingleIdentity_ReturnsAllClaims()
+    public void GetAllClaims_WhenSingleIdentity_ReturnsAllClaimsSerialized()
     {
         // Arrange
         var identity = new ClaimsIdentity(new[]
@@ -50,17 +51,19 @@ public class PrincipalExtensionsTests
         IPrincipal principal = new ClaimsPrincipal(identity);
 
         // Act
-        var claims = principal.GetAllClaims();
+        var claimsJson = principal.GetAllClaimsAsJsonString();
+        var claims = JsonSerializer.Deserialize<List<KeyValuePair<string, string>>>(claimsJson!);
 
         // Assert
-        claims.Count.ShouldBe(3);
+        claims.ShouldNotBeNull();
+        claims!.Count.ShouldBe(3);
         claims.ShouldContain(kv => kv.Key == ClaimTypes.NameIdentifier && kv.Value == "123");
         claims.ShouldContain(kv => kv.Key == ClaimTypes.Name && kv.Value == "Alice");
         claims.ShouldContain(kv => kv.Key == "custom" && kv.Value == "value");
     }
 
     [Fact]
-    public void GetAllClaims_WhenMultipleIdentities_AggregatesAllClaims()
+    public void GetAllClaims_WhenMultipleIdentities_AggregatesAllClaimsSerialized()
     {
         // Arrange
         var identity1 = new ClaimsIdentity(new[]
@@ -78,10 +81,12 @@ public class PrincipalExtensionsTests
         IPrincipal principal = new ClaimsPrincipal(new[] { identity1, identity2 });
 
         // Act
-        var claims = principal.GetAllClaims();
+        var claimsJson = principal.GetAllClaimsAsJsonString();
+        var claims = JsonSerializer.Deserialize<List<KeyValuePair<string, string>>>(claimsJson!);
 
         // Assert
-        claims.Count.ShouldBe(4);
+        claims.ShouldNotBeNull();
+        claims!.Count.ShouldBe(4);
         claims.ShouldContain(kv => kv.Key == ClaimTypes.Email && kv.Value == "a@example.com");
         claims.ShouldContain(kv => kv.Key == "scope" && kv.Value == "read");
         claims.ShouldContain(kv => kv.Key == ClaimTypes.Email && kv.Value == "b@example.com");
@@ -89,7 +94,7 @@ public class PrincipalExtensionsTests
     }
 
     [Fact]
-    public void GetAllClaims_WhenDuplicateTypes_IncludesAllOccurrences()
+    public void GetAllClaims_WhenDuplicateTypes_IncludesAllOccurrencesSerialized()
     {
         // Arrange
         var identity = new ClaimsIdentity(new[]
@@ -100,10 +105,12 @@ public class PrincipalExtensionsTests
         IPrincipal principal = new ClaimsPrincipal(identity);
 
         // Act
-        var claims = principal.GetAllClaims();
+        var claimsJson = principal.GetAllClaimsAsJsonString();
+        var claims = JsonSerializer.Deserialize<List<KeyValuePair<string, string>>>(claimsJson!);
 
         // Assert
-        claims.Count.ShouldBe(2);
+        claims.ShouldNotBeNull();
+        claims!.Count.ShouldBe(2);
         claims.ShouldContain(kv => kv.Key == "role" && kv.Value == "admin");
         claims.ShouldContain(kv => kv.Key == "role" && kv.Value == "editor");
     }

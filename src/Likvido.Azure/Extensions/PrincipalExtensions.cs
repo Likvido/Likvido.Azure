@@ -1,17 +1,18 @@
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Security.Principal;
+using System.Text.Json;
 
 namespace Likvido.Azure.Extensions
 {
     public static class PrincipalExtensions
     {
-        public static List<KeyValuePair<string, string>> GetAllClaims(this IPrincipal principal)
+        public static string GetAllClaimsAsJsonString(this IPrincipal principal)
         {
             var result = new List<KeyValuePair<string, string>>();
             if (principal is null)
             {
-                return result;
+                return "[]";
             }
 
             if (principal is ClaimsPrincipal claimsPrincipal)
@@ -28,7 +29,7 @@ namespace Likvido.Azure.Extensions
                 }
             }
 
-            return result;
+            return JsonSerializer.Serialize(result);
         }
     }
 }

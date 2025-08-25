@@ -77,7 +77,7 @@ namespace Likvido.Azure.Queue
 
             if (_principalProvider.User != null)
             {
-                cloudEvent.LikvidoUserClaims = _principalProvider.User.GetAllClaims();
+                cloudEvent.LikvidoUserClaimsString = _principalProvider.User.GetAllClaimsAsJsonString();
             }
 
             await SendMessageAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
