@@ -5,7 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Queues;
+using Likvido.Azure.Extensions;
 using Likvido.CloudEvents;
+using Likvido.Identity.PrincipalProviders;
 using Newtonsoft.Json;
 using Polly;
 using Polly.Retry;
@@ -15,11 +17,13 @@ namespace Likvido.Azure.Queue
     public class QueueService : IQueueService
     {
         private readonly QueueServiceClient _queueServiceClient;
+        private readonly IPrincipalProvider _principalProvider;
         private readonly string _defaultSource;
 
-        public QueueService(QueueServiceClient queueServiceClient, string defaultSource)
+        public QueueService(QueueServiceClient queueServiceClient, IPrincipalProvider principalProvider, string defaultSource)
         {
             _queueServiceClient = queueServiceClient;
+            _principalProvider = principalProvider;
             _defaultSource = defaultSource;
         }
 
@@ -69,6 +73,11 @@ namespace Likvido.Azure.Queue
             if (string.IsNullOrWhiteSpace(cloudEvent.Source))
             {
                 cloudEvent.Source = _defaultSource;
+            }
+
+            if (_principalProvider.User != null)
+            {
+                cloudEvent.LikvidoUserClaims = _principalProvider.User.GetAllClaims();
             }
 
             await SendMessageAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
