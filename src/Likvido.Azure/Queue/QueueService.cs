@@ -8,7 +8,7 @@ using Azure.Storage.Queues;
 using Likvido.Azure.Extensions;
 using Likvido.CloudEvents;
 using Likvido.Identity.PrincipalProviders;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Polly;
 using Polly.Retry;
 
@@ -110,7 +110,7 @@ namespace Likvido.Azure.Queue
                         try
                         {
                             await queue.SendMessageAsync(
-                                    JsonConvert.SerializeObject(message),
+                                    JsonSerializer.Serialize(message),
                                     timeToLive: timeToLive ?? TimeSpan.FromSeconds(-1), // Using -1 means that the message does not expire.
                                     visibilityTimeout: initialVisibilityDelay,
                                     cancellationToken: cancellationToken)
