@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json;
 using Azure;
 using Azure.Messaging.EventGrid;
+using Likvido.Azure.Extensions;
 using Likvido.CloudEvents;
+using Likvido.Identity.PrincipalProviders;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Fallback;
@@ -16,12 +19,14 @@ namespace Likvido.Azure.EventGrid
     public class EventGridService : IEventGridService
     {
         private readonly ILogger<EventGridService> _logger;
+        private readonly IPrincipalProvider _principalProvider;
         private readonly string _eventGridSource;
         private readonly EventGridPublisherClient _client;
 
-        public EventGridService(EventGridPublisherClient client, ILogger<EventGridService> logger, string eventGridSource)
+        public EventGridService(EventGridPublisherClient client, ILogger<EventGridService> logger, IPrincipalProvider principalProvider, string eventGridSource)
         {
             _logger = logger;
+            _principalProvider = principalProvider;
             _eventGridSource = eventGridSource;
             _client = client;
         }
@@ -54,6 +59,11 @@ namespace Likvido.Azure.EventGrid
                     ExtensionAttributes = { ["likvidopriority"] = Enum.GetName(typeof(LikvidoPriority), priority) }
                 };
 
+                if (_principalProvider.User != null)
+                {
+                    cloudEvent.ExtensionAttributes.Add("likvidouserclaimsstring", _principalProvider.User.GetAllClaimsAsJsonString());
+                }
+
                 var eventSize = GetEventSize(cloudEvent);
 
                 if (currentBatchSize + eventSize > sizeLimit)
@@ -77,12 +87,31 @@ namespace Likvido.Azure.EventGrid
 
         private static int GetEventSize(CloudEvent cloudEvent)
         {
-            // This is a rough estimate of the overhead of the CloudEvent object
-            // It was found via experimentation on calling the actual API with various event sizes
+            // This is a rough estimate of the total CloudEvent size used for batching
+            // Base overhead was found via experimentation on calling the actual API with various event sizes
             const int eventOverhead = 300;
+
+            // Size of the event data payload (BinaryData)
             var actualEventSize = cloudEvent.Data?.ToArray().Length ?? 0;
 
-            return actualEventSize + eventOverhead;
+            // Include the size of extension attributes as they are serialized and transmitted as part of the event
+            var extensionAttributesSize = 0;
+            if (cloudEvent.ExtensionAttributes.Count > 0)
+            {
+                try
+                {
+                    // Estimate by serializing to UTF-8 JSON (close to wire format size)
+                    var bytes = JsonSerializer.SerializeToUtf8Bytes(cloudEvent.ExtensionAttributes);
+                    extensionAttributesSize = bytes.Length;
+                }
+                catch
+                {
+                    // If serialization fails for any reason, fall back to a minimal estimate based on keys/values length
+                    extensionAttributesSize = cloudEvent.ExtensionAttributes.Sum(kvp => (kvp.Key?.Length ?? 0) + (kvp.Value?.ToString()?.Length ?? 0));
+                }
+            }
+
+            return actualEventSize + extensionAttributesSize + eventOverhead;
         }
 
         private async Task SendBatchAsync(List<CloudEvent> batch)

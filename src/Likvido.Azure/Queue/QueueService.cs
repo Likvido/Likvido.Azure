@@ -5,8 +5,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Queues;
+using Likvido.Azure.Extensions;
 using Likvido.CloudEvents;
-using Newtonsoft.Json;
+using Likvido.Identity.PrincipalProviders;
+using System.Text.Json;
 using Polly;
 using Polly.Retry;
 
@@ -15,11 +17,13 @@ namespace Likvido.Azure.Queue
     public class QueueService : IQueueService
     {
         private readonly QueueServiceClient _queueServiceClient;
+        private readonly IPrincipalProvider _principalProvider;
         private readonly string _defaultSource;
 
-        public QueueService(QueueServiceClient queueServiceClient, string defaultSource)
+        public QueueService(QueueServiceClient queueServiceClient, IPrincipalProvider principalProvider, string defaultSource)
         {
             _queueServiceClient = queueServiceClient;
+            _principalProvider = principalProvider;
             _defaultSource = defaultSource;
         }
 
@@ -71,6 +75,11 @@ namespace Likvido.Azure.Queue
                 cloudEvent.Source = _defaultSource;
             }
 
+            if (_principalProvider.User != null)
+            {
+                cloudEvent.LikvidoUserClaimsString = _principalProvider.User.GetAllClaimsAsJsonString();
+            }
+
             await SendMessageAsync(queueName, cloudEvent, initialVisibilityDelay, timeToLive, cancellationToken).ConfigureAwait(false);
         }
 
@@ -101,7 +110,7 @@ namespace Likvido.Azure.Queue
                         try
                         {
                             await queue.SendMessageAsync(
-                                    JsonConvert.SerializeObject(message),
+                                    JsonSerializer.Serialize(message),
                                     timeToLive: timeToLive ?? TimeSpan.FromSeconds(-1), // Using -1 means that the message does not expire.
                                     visibilityTimeout: initialVisibilityDelay,
                                     cancellationToken: cancellationToken)
