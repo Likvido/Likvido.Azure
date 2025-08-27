@@ -126,7 +126,8 @@ namespace Likvido.Azure.Queue
                         }
                         catch (RequestFailedException e) when (e.ErrorCode != null && e.ErrorCode == "RequestBodyTooLarge")
                         {
-                            _logger.LogError("Message sent is too large: {message}", serializedMessage);
+                            _logger.LogError(e, "Message sent is too large: {message}", serializedMessage);
+                            throw;
                         }
                     },
                     cancellationToken)
