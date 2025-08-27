@@ -85,7 +85,7 @@ namespace Likvido.Azure
             services.TryAddNullPrincipalProvider();
 
             services.AddSingleton<IQueueService>(sp => new QueueService(sp.GetRequiredService<QueueServiceClient>(),
-                sp.GetRequiredService<IPrincipalProvider>(), queueConfiguration.DefaultSource));
+                sp.GetRequiredService<IPrincipalProvider>(), queueConfiguration.DefaultSource, sp.GetRequiredService<ILogger<QueueService>>()));
         }
     }
 }
