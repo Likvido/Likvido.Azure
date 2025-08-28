@@ -11,6 +11,7 @@ using Likvido.Identity.PrincipalProviders;
 using System.Text.Json;
 using Polly;
 using Polly.Retry;
+using Microsoft.Extensions.Logging;
 
 namespace Likvido.Azure.Queue
 {
@@ -19,12 +20,14 @@ namespace Likvido.Azure.Queue
         private readonly QueueServiceClient _queueServiceClient;
         private readonly IPrincipalProvider _principalProvider;
         private readonly string _defaultSource;
+        private readonly ILogger<QueueService> _logger;
 
-        public QueueService(QueueServiceClient queueServiceClient, IPrincipalProvider principalProvider, string defaultSource)
+        public QueueService(QueueServiceClient queueServiceClient, IPrincipalProvider principalProvider, string defaultSource, ILogger<QueueService> logger)
         {
             _queueServiceClient = queueServiceClient;
             _principalProvider = principalProvider;
             _defaultSource = defaultSource;
+            _logger = logger;
         }
 
         public async Task SendAsync(
@@ -107,10 +110,11 @@ namespace Likvido.Azure.Queue
                 .ExecuteAsync(async _ =>
                     {
                         var queue = _queueServiceClient.GetQueueClient(queueName);
+                        var serializedMessage = JsonSerializer.Serialize(message);
                         try
                         {
                             await queue.SendMessageAsync(
-                                    JsonSerializer.Serialize(message),
+                                    serializedMessage,
                                     timeToLive: timeToLive ?? TimeSpan.FromSeconds(-1), // Using -1 means that the message does not expire.
                                     visibilityTimeout: initialVisibilityDelay,
                                     cancellationToken: cancellationToken)
@@ -119,6 +123,11 @@ namespace Likvido.Azure.Queue
                         catch (RequestFailedException e) when (e.Status == (int)HttpStatusCode.NotFound)
                         {
                             await queue.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (RequestFailedException e) when (e.ErrorCode != null && e.ErrorCode == "RequestBodyTooLarge")
+                        {
+                            _logger.LogError(e, "Message sent is too large: {message}", serializedMessage);
+                            throw;
                         }
                     },
                     cancellationToken)
