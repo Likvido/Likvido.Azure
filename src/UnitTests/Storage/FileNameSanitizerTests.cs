@@ -65,7 +65,7 @@ public class FileNameSanitizerTests
     [Theory]
     [InlineData("", "file")]
     [InlineData("   ", "file")]
-    [InlineData(null, "file")]
+    [InlineData(null!, "file")]
     public void Sanitize_WhenGivenEmptyOrNull_ShouldReturnFile(string input, string expected)
     {
         // Act
