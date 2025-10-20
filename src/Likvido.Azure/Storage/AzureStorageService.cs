@@ -181,15 +181,18 @@ namespace Likvido.Azure.Storage
 
             if (!string.IsNullOrWhiteSpace(friendlyName))
             {
+                // Sanitize filename to ensure it contains only ASCII characters
+                var sanitizedFileName = FileNameSanitizer.Sanitize(friendlyName);
+
                 // Get the existing properties
                 BlobProperties properties = await blob.GetPropertiesAsync().ConfigureAwait(false);
 
                 var headers = new BlobHttpHeaders
                 {
-                    ContentDisposition = $"attachment; filename={friendlyName}",
+                    ContentDisposition = $"attachment; filename={sanitizedFileName}",
                     ContentType = "application/octet-stream",
 
-                    // Populate remaining headers with 
+                    // Populate remaining headers with
                     // the pre-existing properties
                     CacheControl = properties.CacheControl,
                     ContentEncoding = properties.ContentEncoding,
