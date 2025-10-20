@@ -81,12 +81,21 @@ namespace Likvido.Azure.Storage
             }
 
             // Combine and enforce length limit
-            var result = sanitizedName + sanitizedExtension;
-            if (result.Length > MaxFileNameLength)
-            {
-                var maxNameLength = MaxFileNameLength - sanitizedExtension.Length;
-                result = sanitizedName.Substring(0, Math.Max(1, maxNameLength)) + sanitizedExtension;
-            }
+            // First, clamp the extension to ensure there's room for at least one name character
+            var clampedExtension = sanitizedExtension.Length >= MaxFileNameLength
+                ? sanitizedExtension.Substring(0, MaxFileNameLength - 1)
+                : sanitizedExtension;
+
+            // Compute the maximum allowed name length
+            var maxNameLength = MaxFileNameLength - clampedExtension.Length;
+            maxNameLength = Math.Max(1, maxNameLength); // Ensure at least 1 character for the name
+
+            // Truncate the name if needed and append the extension
+            var truncatedName = sanitizedName.Length > maxNameLength
+                ? sanitizedName.Substring(0, maxNameLength)
+                : sanitizedName;
+
+            var result = truncatedName + clampedExtension;
 
             return result;
         }
