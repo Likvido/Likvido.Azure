@@ -21,6 +21,7 @@ public class FileNameSanitizerTests
 
     [Theory]
     [InlineData("Søren.pdf", "Soren.pdf")]
+    [InlineData("Ånderå.pdf", "Andera.pdf")]
     [InlineData("René.txt", "Rene.txt")]
     [InlineData("Müller.doc", "Muller.doc")]
     [InlineData("Ångström.csv", "Angstrom.csv")]
