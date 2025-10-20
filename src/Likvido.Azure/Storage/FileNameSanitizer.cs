@@ -60,10 +60,10 @@ namespace Likvido.Azure.Storage
         private static string ReplaceDanishCharacters(string input)
         {
             return input
-                .Replace("ø", "o")
-                .Replace("Ø", "O")
-                .Replace("æ", "ae")
-                .Replace("Æ", "AE");
+                .Replace("Ã¸", "o")
+                .Replace("Ã˜", "O")
+                .Replace("Ã¦", "ae")
+                .Replace("Ã†", "AE");
         }
     }
 }
