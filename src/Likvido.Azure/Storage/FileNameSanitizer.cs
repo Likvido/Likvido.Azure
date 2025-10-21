@@ -10,7 +10,7 @@ namespace Likvido.Azure.Storage
     public static class FileNameSanitizer
     {
         /// <summary>
-        /// Sanitizes a filename by converting non-ASCII characters to ASCII equivalents.
+        /// Sanitizes a filename by removing non-ASCII characters.
         /// </summary>
         /// <param name="fileName">The filename to sanitize</param>
         /// <returns>A sanitized filename containing only ASCII characters</returns>
