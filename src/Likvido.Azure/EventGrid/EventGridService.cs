@@ -123,18 +123,6 @@ namespace Likvido.Azure.EventGrid
 
         private ResiliencePipeline<Response> GetResiliencePipeline() =>
             new ResiliencePipelineBuilder<Response>()
-                .AddRetry(new RetryStrategyOptions<Response>
-                {
-                    ShouldHandle = new PredicateBuilder<Response>().Handle<Exception>(),
-                    Delay = TimeSpan.FromSeconds(2),
-                    MaxRetryAttempts = 5,
-                    BackoffType = DelayBackoffType.Linear,
-                    OnRetry = args =>
-                    {
-                        _logger.LogError(args.Outcome.Exception, "Error while publishing events to Event Grid. Retrying in {SleepDuration}. Attempt number {AttemptNumber}", args.RetryDelay.ToString("g"), args.AttemptNumber);
-                        return default;
-                    }
-                })
                 .AddFallback(new FallbackStrategyOptions<Response>
                 {
                     ShouldHandle = new PredicateBuilder<Response>().Handle<Exception>(),
@@ -148,6 +136,18 @@ namespace Likvido.Azure.EventGrid
 
                         _logger.LogCritical(args.Outcome.Exception, "Failed to publish events to Event Grid after multiple retries");
                         throw args.Outcome.Exception;
+                    }
+                })
+                .AddRetry(new RetryStrategyOptions<Response>
+                {
+                    ShouldHandle = new PredicateBuilder<Response>().Handle<Exception>(),
+                    Delay = TimeSpan.FromSeconds(2),
+                    MaxRetryAttempts = 5,
+                    BackoffType = DelayBackoffType.Linear,
+                    OnRetry = args =>
+                    {
+                        _logger.LogWarning(args.Outcome.Exception, "Error while publishing events to Event Grid. Retrying in {SleepDuration}. Attempt number {AttemptNumber}", args.RetryDelay.ToString("g"), args.AttemptNumber);
+                        return default;
                     }
                 })
                 .Build();
