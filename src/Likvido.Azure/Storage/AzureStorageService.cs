@@ -35,7 +35,7 @@ namespace Likvido.Azure.Storage
 
         public IEnumerable<Uri> Find(string prefix)
         {
-            foreach (var blob in blobContainerClient.GetBlobs(BlobTraits.None, BlobStates.None, prefix))
+            foreach (var blob in blobContainerClient.GetBlobs(BlobTraits.None, BlobStates.None, prefix, default))
             {
                 yield return blobContainerClient.GetBlobClient(blob.Name)?.Uri;
             }
