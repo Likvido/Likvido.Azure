@@ -17,8 +17,8 @@
     <PackageReference Include="Likvido.CloudEvents" Version="1.2.0" />
     <PackageReference Include="Likvido.Identity" Version="1.1.8" />
     <PackageReference Include="Microsoft.Extensions.Azure" Version="1.13.1" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
     <PackageReference Include="Polly.Core" Version="8.6.6" />
   </ItemGroup>
 
