@@ -123,6 +123,8 @@ namespace Likvido.Azure.Queue
                         catch (RequestFailedException e) when (e.Status == (int)HttpStatusCode.NotFound)
                         {
                             await queue.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                            // Throw here so the resilience retries and sends the message after failure
+                            throw;
                         }
                         catch (RequestFailedException e) when (e.ErrorCode != null && e.ErrorCode == "RequestBodyTooLarge")
                         {
