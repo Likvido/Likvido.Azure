@@ -19,7 +19,7 @@
     <PackageReference Include="Microsoft.Extensions.Azure" Version="1.14.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-    <PackageReference Include="Polly.Core" Version="8.7.0" />
+    <PackageReference Include="Polly.Core" Version="8.8.0" />
   </ItemGroup>
 
 </Project>
