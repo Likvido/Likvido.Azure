@@ -12,6 +12,8 @@ namespace Likvido.Azure.Storage
     public interface IAzureStorageService
     {
         Task DeleteAsync(Uri uri);
+        // True when a blob was deleted, false when there was no blob at the URI.
+        Task<bool> DeleteIfExistsAsync(Uri uri);
         IEnumerable<Uri> Find(string prefix);
         Task DeleteAsync(string key);
         Task<MemoryStream> GetAsync(Uri uri);

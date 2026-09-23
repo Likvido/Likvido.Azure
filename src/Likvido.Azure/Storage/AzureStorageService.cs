@@ -28,6 +28,12 @@ namespace Likvido.Azure.Storage
             await DeleteAsync(new BlobClient(uri, storageSharedKeyCredential)).ConfigureAwait(false);
         }
 
+        public async Task<bool> DeleteIfExistsAsync(Uri uri)
+        {
+            var response = await new BlobClient(uri, storageSharedKeyCredential).DeleteIfExistsAsync().ConfigureAwait(false);
+            return response.Value;
+        }
+
         public async Task DeleteAsync(string key)
         {
             await DeleteAsync(blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(key))).ConfigureAwait(false);
