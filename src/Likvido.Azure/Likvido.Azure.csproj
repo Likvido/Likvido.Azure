@@ -7,6 +7,10 @@
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="UnitTests" />
+  </ItemGroup>
+
   <Import Project="$(ProjectDir)../version.props" />
 
   <ItemGroup>

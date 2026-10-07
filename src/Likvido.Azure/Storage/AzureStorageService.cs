@@ -6,6 +6,7 @@ using Azure.Storage.Sas;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -13,6 +14,9 @@ namespace Likvido.Azure.Storage
 {
     public class AzureStorageService : IAzureStorageService
     {
+        // Highest "(n)" suffix tried when overwrite is false and the name is taken.
+        internal const int MaxDuplicateSuffix = 100;
+
         private readonly BlobContainerClient blobContainerClient;
         private readonly StorageSharedKeyCredential storageSharedKeyCredential;
 
@@ -21,6 +25,12 @@ namespace Likvido.Azure.Storage
             var blobServiceClient = new BlobServiceClient(storageConfiguration.ConnectionString);
             blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
             storageSharedKeyCredential = storageConfiguration.GetStorageSharedKeyCredential();
+        }
+
+        internal AzureStorageService(BlobContainerClient blobContainerClient, StorageSharedKeyCredential storageSharedKeyCredential)
+        {
+            this.blobContainerClient = blobContainerClient;
+            this.storageSharedKeyCredential = storageSharedKeyCredential;
         }
 
         public async Task DeleteAsync(Uri uri)
@@ -64,7 +74,45 @@ namespace Likvido.Azure.Storage
 
         public async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null)
         {
-            return await SetAsync(key, content, friendlyName, overwrite, 0, metadata).ConfigureAwait(false);
+            var options = new BlobUploadOptions { Metadata = metadata };
+            if (!overwrite)
+            {
+                // Upload only when no blob exists under this name.
+                options.Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All };
+            }
+
+            if (!string.IsNullOrWhiteSpace(friendlyName))
+            {
+                options.HttpHeaders = new BlobHttpHeaders
+                {
+                    // Sanitize filename to ensure it contains only ASCII characters
+                    ContentDisposition = $"attachment; filename={FileNameSanitizer.Sanitize(friendlyName)}",
+                    ContentType = "application/octet-stream"
+                };
+            }
+
+            for (var iteration = 0; ; iteration++)
+            {
+                var duplicateAwareKey = overwrite || iteration == 0
+                    ? key
+                    : $"{Path.GetDirectoryName(key)?.Replace('\\', '/')}/{Path.GetFileNameWithoutExtension(key)}({iteration.ToString()}){Path.GetExtension(key)}";
+
+                var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
+                content.Seek(0, SeekOrigin.Begin);
+
+                try
+                {
+                    await blob.UploadAsync(content, options).ConfigureAwait(false);
+                    return blob.Uri;
+                }
+                catch (RequestFailedException ex) when (!overwrite && ex.Status == (int)HttpStatusCode.Conflict && ex.ErrorCode == BlobErrorCode.BlobAlreadyExists)
+                {
+                    if (iteration >= MaxDuplicateSuffix)
+                    {
+                        throw new InvalidOperationException($"Could not upload '{key}': the name and all {MaxDuplicateSuffix} numbered alternatives already exist.", ex);
+                    }
+                }
+            }
         }
 
         public async Task<MemoryStream> GetAsync(Uri uri)
@@ -153,63 +201,6 @@ namespace Likvido.Azure.Storage
             {
                 throw new InvalidOperationException($"Url must be a blob storage url. The domain {uri.Host} is not allowed");
             }
-        }
-
-        private async Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, int iteration = 0, Dictionary<string, string> metadata = null)
-        {
-            content.Seek(0, SeekOrigin.Begin);
-
-            var duplicateAwareKey = key;
-            if (!overwrite)
-            {
-                duplicateAwareKey = iteration > 0 ?
-                    $"{Path.GetDirectoryName(key)?.Replace('\\', '/')}/{Path.GetFileNameWithoutExtension(key)}({iteration.ToString()}){Path.GetExtension(key)}"
-                    : key;
-            }
-
-            var blob = blobContainerClient.GetBlobClient(HttpUtility.UrlDecode(duplicateAwareKey));
-
-            try
-            {
-                await blob.UploadAsync(content, overwrite: overwrite).ConfigureAwait(false);
-                if (metadata != null)
-                {
-                    await blob.SetMetadataAsync(metadata).ConfigureAwait(false);
-                }
-            }
-            catch (RequestFailedException ex)
-            {
-                if (ex.Status == (int)System.Net.HttpStatusCode.Conflict)
-                {
-                    return await SetAsync(key, content, friendlyName, overwrite, ++iteration, metadata).ConfigureAwait(false);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(friendlyName))
-            {
-                // Sanitize filename to ensure it contains only ASCII characters
-                var sanitizedFileName = FileNameSanitizer.Sanitize(friendlyName);
-
-                // Get the existing properties
-                BlobProperties properties = await blob.GetPropertiesAsync().ConfigureAwait(false);
-
-                var headers = new BlobHttpHeaders
-                {
-                    ContentDisposition = $"attachment; filename={sanitizedFileName}",
-                    ContentType = "application/octet-stream",
-
-                    // Populate remaining headers with
-                    // the pre-existing properties
-                    CacheControl = properties.CacheControl,
-                    ContentEncoding = properties.ContentEncoding,
-                    ContentHash = properties.ContentHash
-                };
-
-                // Set the blob's properties.
-                await blob.SetHttpHeadersAsync(headers);
-            }
-
-            return blob.Uri;
         }
     }
 }

@@ -19,6 +19,7 @@ namespace Likvido.Azure.Storage
         Task<MemoryStream> GetAsync(Uri uri);
         Task<MemoryStream> GetAsync(string blobName);
         Task<Uri> RenameAsync(string tempFileName, string fileName);
+        // Throws when the upload fails. With overwrite false, a taken name is retried as "name(1).ext", "name(2).ext" and so on.
         Task<Uri> SetAsync(string key, Stream content, string friendlyName = null, bool overwrite = true, Dictionary<string, string> metadata = null);
         Task<string> GetBlobSasUriAsync(string url, DateTime? expiresOn = null);
         Task<IDictionary<string, string>> GetMetadataAsync(string key);
