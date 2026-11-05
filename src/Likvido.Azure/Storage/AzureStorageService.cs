@@ -18,29 +18,33 @@ namespace Likvido.Azure.Storage
         internal const int MaxDuplicateSuffix = 100;
 
         private readonly BlobContainerClient blobContainerClient;
-        private readonly StorageSharedKeyCredential storageSharedKeyCredential;
+        private readonly Func<Uri, BlobClient> createBlobClient;
 
         public AzureStorageService(StorageConfiguration storageConfiguration, string containerName)
         {
             var blobServiceClient = new BlobServiceClient(storageConfiguration.ConnectionString);
             blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
-            storageSharedKeyCredential = storageConfiguration.GetStorageSharedKeyCredential();
+            var storageSharedKeyCredential = storageConfiguration.GetStorageSharedKeyCredential();
+            createBlobClient = uri => new BlobClient(uri, storageSharedKeyCredential);
         }
 
-        internal AzureStorageService(BlobContainerClient blobContainerClient, StorageSharedKeyCredential storageSharedKeyCredential)
+        // createBlobClient builds the client for a URL that passed the container check; tests pass a fake.
+        internal AzureStorageService(BlobContainerClient blobContainerClient, Func<Uri, BlobClient> createBlobClient)
         {
             this.blobContainerClient = blobContainerClient;
-            this.storageSharedKeyCredential = storageSharedKeyCredential;
+            this.createBlobClient = createBlobClient;
         }
 
         public async Task DeleteAsync(Uri uri)
         {
-            await DeleteAsync(new BlobClient(uri, storageSharedKeyCredential)).ConfigureAwait(false);
+            EnsureInOwnContainer(uri, nameof(uri));
+            await DeleteAsync(createBlobClient(uri)).ConfigureAwait(false);
         }
 
         public async Task<bool> DeleteIfExistsAsync(Uri uri)
         {
-            var response = await new BlobClient(uri, storageSharedKeyCredential).DeleteIfExistsAsync().ConfigureAwait(false);
+            EnsureInOwnContainer(uri, nameof(uri));
+            var response = await createBlobClient(uri).DeleteIfExistsAsync().ConfigureAwait(false);
             return response.Value;
         }
 
@@ -117,9 +121,9 @@ namespace Likvido.Azure.Storage
 
         public async Task<MemoryStream> GetAsync(Uri uri)
         {
-            if (uri.AbsolutePath.Contains(blobContainerClient.Name))
+            if (IsInOwnContainer(uri, nameof(uri)))
             {
-                return await GetAsync(new BlobClient(uri, storageSharedKeyCredential)).ConfigureAwait(false);
+                return await GetAsync(createBlobClient(uri)).ConfigureAwait(false);
             }
 
             return null;
@@ -137,9 +141,9 @@ namespace Likvido.Azure.Storage
 
         public async Task<IDictionary<string, string>> GetMetadataAsync(Uri uri)
         {
-            if (uri.AbsolutePath.Contains(blobContainerClient.Name))
+            if (IsInOwnContainer(uri, nameof(uri)))
             {
-                return await GetMetadataAsync(new BlobClient(uri, storageSharedKeyCredential)).ConfigureAwait(false);
+                return await GetMetadataAsync(createBlobClient(uri)).ConfigureAwait(false);
             }
 
             return null;
@@ -147,8 +151,13 @@ namespace Likvido.Azure.Storage
 
         public async Task<string> GetBlobSasUriAsync(string url, DateTime? expiresOn = null)
         {
-            EnsureDomainIsAllowed(url);
-            var blobClient = new BlobClient(new Uri(url), storageSharedKeyCredential);
+            if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                throw new ArgumentException("The blob URL must be an absolute URL.", nameof(url));
+            }
+
+            EnsureInOwnContainer(uri, nameof(url));
+            var blobClient = createBlobClient(uri);
             var exist = await blobClient.ExistsAsync().ConfigureAwait(false);
             if (!exist)
             {
@@ -188,19 +197,57 @@ namespace Likvido.Azure.Storage
             return blobProperties.Value.Metadata;
         }
 
-        private void EnsureDomainIsAllowed(string url)
+        private void EnsureInOwnContainer(Uri uri, string paramName)
         {
-            if (string.IsNullOrWhiteSpace(url))
+            if (!IsInOwnContainer(uri, paramName))
             {
-                throw new ArgumentException("Url cannot be null or empty");
+                throw new ArgumentException($"The blob URL is not in the container '{blobContainerClient.Name}'.", paramName);
+            }
+        }
+
+        // The request for a URL is signed with this account's key and sent to the URL's host, so the URL must be on
+        // this service's own endpoint: same scheme, host and port. Throws when it is not; returns false when it is on
+        // the endpoint but in another container. The container is the first path segment, or the second on a
+        // path-style endpoint such as Azurite's http://127.0.0.1:10000/devstoreaccount1/<container>.
+        private bool IsInOwnContainer(Uri uri, string paramName)
+        {
+            if (uri == null)
+            {
+                throw new ArgumentNullException(paramName);
             }
 
-            var uri = new Uri(url);
-            // Azure blob storage url must be in the format https://<account>.blob.core.windows.net/<container>/<blob>
-            if (!uri.Host.ToLower().EndsWith("core.windows.net"))
+            if (!uri.IsAbsoluteUri)
             {
-                throw new InvalidOperationException($"Url must be a blob storage url. The domain {uri.Host} is not allowed");
+                throw new ArgumentException("The blob URL must be an absolute URL.", paramName);
             }
+
+            var ownUri = blobContainerClient.Uri;
+            if (!string.Equals(uri.Scheme, ownUri.Scheme, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"The blob URL must use {ownUri.Scheme}, the scheme of this storage account's endpoint.", paramName);
+            }
+
+            if (!string.Equals(uri.Host, ownUri.Host, StringComparison.OrdinalIgnoreCase) || uri.Port != ownUri.Port)
+            {
+                throw new ArgumentException($"The blob URL's host '{uri.Authority}' is not this storage account's host '{ownUri.Authority}'.", paramName);
+            }
+
+            var ownPath = ownUri.AbsolutePath.TrimEnd('/');
+            var accountPath = ownPath.Substring(0, ownPath.LastIndexOf('/') + 1);
+            var path = uri.AbsolutePath;
+            if (!path.StartsWith(accountPath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"The blob URL's path is not under this storage account's path '{accountPath}'.", paramName);
+            }
+
+            var containerEnd = path.IndexOf('/', accountPath.Length);
+            if (containerEnd < 0 || containerEnd == path.Length - 1)
+            {
+                throw new ArgumentException("The blob URL must name a blob inside a container.", paramName);
+            }
+
+            var container = Uri.UnescapeDataString(path.Substring(accountPath.Length, containerEnd - accountPath.Length));
+            return string.Equals(container, blobContainerClient.Name, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

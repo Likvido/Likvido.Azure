@@ -161,7 +161,7 @@ public class AzureStorageServiceTests
         }
     }
 
-    private AzureStorageService CreateService() => new(containerClient.Object, null!);
+    private AzureStorageService CreateService() => new(containerClient.Object, _ => throw new InvalidOperationException("No URL-based call expected."));
 
     private static Uri UriFor(string name) => new($"https://account.blob.core.windows.net/container/{name}");
 
